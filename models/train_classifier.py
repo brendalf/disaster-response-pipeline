@@ -1,24 +1,83 @@
+import re
 import sys
+import pickle
+import pandas as pd
+
+from nltk import word_tokenize, download as nltk_download
+from nltk.corpus import stopwords
+from nltk.stem.porter import PorterStemmer
+from nltk.stem.wordnet import WordNetLemmatizer
+
+from sklearn.metrics import classification_report
+
+from sklearn.pipeline import Pipeline
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.multioutput import MultiOutputClassifier
+from sklearn.model_selection import GridSearchCV, train_test_split
+from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
+
+from sqlalchemy import create_engine
+
+pd.set_option('display.max_columns', 200)
+
+nltk_download('punkt')
+nltk_download('stopwords')
+nltk_download('wordnet')
 
 
 def load_data(database_filepath):
-    pass
+    engine = create_engine('sqlite:///{}'.format(database_filepath))
+    
+    df = pd.read_sql_table('messages', engine, index_col="id")
+
+    category_names = df.columns[4:]
+    X = df.message.values
+    Y = df[category_names].values
+    return X, Y, category_names
 
 
 def tokenize(text):
-    pass
+    # normalize the text removing ponctuation and making it lowercase
+    normalized = re.sub("[^a-zA-Z0-9]", " ", text.lower())
+    
+    # tokenize the normalized text
+    words = word_tokenize(normalized)
+    
+    # remove stop words
+    words = [w for w in words if w not in stopwords.words("english")]
+    
+    # lemmetatization
+    wordnet = WordNetLemmatizer()
+    words = [wordnet.lemmatize(w) for w in words]
+    
+    # stemming
+    porter = PorterStemmer()
+    words = [porter.stem(w) for w in words]
+    
+    return words
 
 
 def build_model():
-    pass
+    return Pipeline([
+        ('vect', CountVectorizer(tokenizer=tokenize)),
+        ('tfidf', TfidfTransformer()),
+        ('clf', MultiOutputClassifier(RandomForestClassifier())) 
+    ])
 
 
 def evaluate_model(model, X_test, Y_test, category_names):
-    pass
+    Y_pred = model.predict(X_test)
+
+    scores = []
+    for y_true, y_pred in zip(Y_test.T, Y_pred.T):
+        scores.append(classification_report(y_true.T, y_pred.T, output_dict=True, zero_division=0)['weighted avg']['f1-score'])
+
+    print("    f1 score: {:.2f}".format(sum(scores)/len(scores)))
 
 
 def save_model(model, model_filepath):
-    pass
+    with open(model_filepath, "wb") as f:
+        pickle.dump(model, f)
 
 
 def main():
