@@ -64,8 +64,8 @@ def save_data(df, database_filename):
         df: cleaned dataframe
         database_filename: path and name of sqlite database to be created;
     """
-    engine = create_engine('sqlite:///InsertDatabaseName.db')
-    df.to_sql(database_filename, engine, index=False)
+    engine = create_engine('sqlite:///{}'.format(database_filename))
+    df.to_sql('messages', engine, index=False)
 
 def main():
     if len(sys.argv) == 4:

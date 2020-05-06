@@ -76,19 +76,30 @@ def tokenize(text):
 
 def build_model():
     """
-    Generates a sklearn pipeline with params from the cross validation available in /notebooks.
+    Generates a sklearn gridsearch with a pipeline.
     The pipeline has 3 steps: a CountVectorizer, a TfidfTransformer and a MultiOutputClassifier 
     with a RandomForestClassifier.
-    
+
     Returns:
         pipeline: sklearn pipeline object.
     """
-    # parameters from the grid search available in the notebook ML Pipeline Preparation
-    return Pipeline([
-        ('vect', CountVectorizer(tokenizer=tokenize, max_df=0.75, max_features=10000, ngram_range=(1, 2))),
-        ('tfidf', TfidfTransformer(use_idf=True)),
-        ('clf', MultiOutputClassifier(RandomForestClassifier(n_estimators=200, min_samples_split=2))) 
+    # build a pipeline
+    pipeline = Pipeline([
+        ('vect', CountVectorizer(tokenizer=tokenize, ngram_range=(1,2), max_df=0.75, max_features=10000)),
+        ('tfidf', TfidfTransformer()),
+        ('clf', MultiOutputClassifier(RandomForestClassifier())) 
     ])
+
+    # params dict to tune a model
+    # a full version of this grid search is available in the notebook ML Pipeline
+    parameters = {
+        'clf__estimator__n_estimators': [100, 200],
+        'clf__estimator__min_samples_split': [2, 3]
+    }
+
+    # instantiate a gridsearchcv object with the params defined
+    cv =  GridSearchCV(pipeline, param_grid=parameters, cv=3, verbose=5)
+    return cv
 
 
 def evaluate_model(model, X_test, Y_test, category_names):
